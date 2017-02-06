@@ -262,6 +262,9 @@ impl Edit<List<usize>,usize> for EditorOopsla2015Sec2 {
   }
 }
 
+/// Program `list_map` running on a small, changing input list.
+/// It is simpler than the version from the Adapton collections library.
+///
 /// This `list_map` implementation and its `List<_>` datatype follow
 /// the code listing in Section 2 of _Incremental Computation with
 /// Names_ (OOPSLA 2015).
@@ -288,8 +291,8 @@ pub mod oopsla2015_sec2 {
   use std::hash::Hash;
   use std::fmt::Debug;
   use std::rc::Rc;
-  use adapton::macros::* ;
-  use adapton::engine::* ;
+  //use adapton::macros::* ;
+  //use adapton::engine::* ;
   
   /// `Cons` cells carry an element, name and reference cell for the rest of the list.
   #[derive(Debug,PartialEq,Eq,Hash,Clone)]
@@ -297,10 +300,12 @@ pub mod oopsla2015_sec2 {
     Nil,
     Cons(X, Name, Art<List<X>>)
   }
-  
+
+  /// The _Editor_ in this example generates a three-element initial list, then inserts an additional element.
   #[derive(Clone,Debug)]
   pub struct Editor { } 
 
+  /// The _Archivist_ in this example maps the input list to an output list, using the names of the input list.
   #[derive(Clone,Debug)]
   pub struct Archivist { } 
   
@@ -532,6 +537,7 @@ impl Edit<List<Pt2D>,usize> for UniformPrepend<List<Pt2D>,usize> { // TODO
 }
 
 
+
 #[derive(Clone,Debug)]
 pub struct LazyMap { }
 #[derive(Clone,Debug)]
@@ -578,7 +584,34 @@ pub struct Quickhull { }
 pub struct RazMax {}
 
 #[derive(Clone,Debug)]
-pub struct VecMax {}
+pub struct RazDouble {}
+
+/// Native Rust lab that finds the maximum random integer in an array.
+#[derive(Clone,Debug)]
+pub struct VecMax { }
+impl Compute<Vec<usize>, usize> for VecMax {
+  fn compute(inp:Vec<usize>) -> usize {
+    *(inp.iter().max()).unwrap()
+  }
+}
+impl Generate<Vec<usize>> for VecMax {
+  fn generate<R:Rng> (rng:&mut R, params:&GenerateParams) -> Vec<usize> {
+    let mut v = vec![];
+    for _i in 0..params.size-1 {
+      let j : usize = rng.gen();
+      v.push( j );
+    }
+    return v
+  }
+}
+impl Edit<Vec<usize>, usize> for VecMax {
+  fn edit_init<R:Rng>(_rng:&mut R, _params:&GenerateParams) -> usize { 0 }
+  fn edit<R:Rng>(inp:Vec<usize>, i:usize,
+                 _rng:&mut R, _params:&GenerateParams) -> (Vec<usize>, usize) { 
+    (inp, i+1) 
+  }
+}
+
 
 impl Compute<List<usize>,List<usize>> for EagerMap {
   fn compute(inp:List<usize>) -> List<usize> {
@@ -748,9 +781,9 @@ impl Compute<RazTree<usize>,usize> for RazMax {
   }
 }
 
-impl Compute<Vec<usize>,usize> for VecMax {
-  fn compute(inp:Vec<usize>) -> usize {
-    *(inp.iter().max().unwrap_or(&0))
+impl Compute<RazTree<usize>,RazTree<usize>> for RazDouble {
+  fn compute(inp:RazTree<usize>) -> RazTree<usize> {
+    inp.map(Rc::new(|e:&usize|*e*2))
   }
 }
 
@@ -945,8 +978,15 @@ pub fn all_labs() -> Vec<Box<Lab>> {
             Some(String::from("http://adapton.org/rustdoc/adapton_lab/catalog/struct.VecMax.html")),
             Vec<usize>, usize,
             usize,
-            UniformAppend<_,_>,
+            VecMax,
             VecMax)
+      ,
+    labdef!(name_of_str("raz-double"),
+            Some(String::from("http://adapton.org/rustdoc/adapton_lab/catalog/struct.RazDouble.html")),
+            RazTree<usize>, usize,
+            RazTree<usize>,
+            UniformInsert<_,_>,
+            RazDouble)
       ,
     // labdef!(name_of_str("list-quickhull"),
     //               List<Pt2D>, usize,
