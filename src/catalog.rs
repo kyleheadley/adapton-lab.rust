@@ -713,45 +713,93 @@ pub mod hammer_s17_hw1 {
   pub fn list_reverse<X:Eq+Clone+Hash+Debug+'static>
     (inp: List<X>) -> List<X>
   {
-    fn rev_accum<X:Eq+Clone+Hash+Debug+'static>
-      (r: List<X>,inp:List<X>) -> List<X>
-    {
-      match inp {
-        List::Nil => {r},
-        List::Cons(x,xs) => {
-          let rev = List::Cons(x,Box::new(r));
-          rev_accum(rev,*xs)
-        },
-        List::Name(nm,xs) => {
-          let (nm1, nm2) = name_fork(nm.clone());
-          let rev = memo!(nm.clone() =>>
-            rev_accum::<X>, 
-            r:r, xs:*xs
-          );
-          List::Name(nm1,Box::new(
-            List::Art(cell(nm2,rev))
-          ))
-        },
-        List::Art(art) => {
-          rev_accum(r,force(&art))
-        }
+    list_reverse_accum(List::Nil,inp)
+  }
+
+  fn list_reverse_accum<X:Eq+Clone+Hash+Debug+'static>
+    (r: List<X>,inp:List<X>) -> List<X>
+  {
+    match inp {
+      List::Nil => {r},
+      List::Cons(x,xs) => {
+        let rev = List::Cons(x,Box::new(r));
+        list_reverse_accum(rev,*xs)
+      },
+      List::Name(nm,xs) => {
+        let (nm1, nm2) = name_fork(nm.clone());
+        let rev = memo!(nm =>>
+          list_reverse_accum::<X>, 
+          r:r, xs:*xs
+        );
+        List::Name(nm1,Box::new(
+          List::Art(cell(nm2,rev))
+        ))
+      },
+      List::Art(art) => {
+        list_reverse_accum(r,force(&art))
       }
     }
-    rev_accum(List::Nil,inp)
   }
 
   /// List join:
   pub fn list_join<X:Eq+Clone+Hash+Debug+'static>
     (inp: List<List<X>>) -> List<X>
   {
-    panic!("TODO")
+    fn fold<X:Eq+Clone+Hash+Debug+'static>
+      (a: List<X>,inp:List<List<X>>) -> List<X>
+    {
+      match inp {
+        List::Nil => {a},
+        List::Cons(l,ls) => {
+          let accum = list_reverse_accum(a,l);
+          fold(accum,*ls)
+        },
+        List::Name(nm,ls) => {
+          let (nm1, nm2) = name_fork(nm.clone());
+          let rest = memo!(nm =>>
+            fold::<X>, 
+            a:a, ls:*ls
+          );
+          List::Name(nm1,Box::new(
+            List::Art(cell(nm2,rest))
+          ))
+        },
+        List::Art(art) => {
+          fold(a,force(&art))
+        }
+      }
+    }
+    list_reverse(fold(List::Nil,inp))
   }
 
   /// List singletons:
   pub fn list_singletons<X:Eq+Clone+Hash+Debug+'static>
-    (inp: List<X>) -> List<List<X>>
+    // use () to get around a macro bug
+    (a:(),inp: List<X>) -> List<List<X>>
   {
-    panic!("TODO")
+    match inp {
+      List::Nil => {List::Nil},
+      List::Cons(x,xs) => {
+        let rest = list_singletons((),*xs);
+        List::Cons(
+          List::Cons(x,Box::new(List::Nil)),
+          Box::new(rest)
+        )
+      },
+      List::Name(nm, xs) => {
+        let (nm1, nm2) = name_fork(nm.clone());
+        let rest = memo!( nm =>>
+          list_singletons::<X>, 
+          a:(),xs:*xs
+        );
+        List::Name(nm1,Box::new(
+          List::Art(cell(nm2,rest))
+        ))
+      },
+      List::Art(art) => {
+        list_singletons((),force(&art))
+      },
+    }
   }
 
 
@@ -776,7 +824,7 @@ pub mod hammer_s17_hw1 {
   #[derive(Clone,Debug)]
   pub struct RunSingletons { } 
   impl Compute<List<usize>, List<List<usize>>> for RunSingletons {
-    fn compute(inp:List<usize>) -> List<List<usize>> { list_singletons(inp) }
+    fn compute(inp:List<usize>) -> List<List<usize>> { list_singletons((),inp) }
   }  
 
   #[derive(Clone,Debug)]
